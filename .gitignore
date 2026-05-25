@@ -1,0 +1,78 @@
+# Секреты
+.env
+*.env
+env_vars.txt
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Виртуальное окружение
+venv/
+env/
+ENV/
+
+# База данных
+*.db
+*.sqlite
+*.sqlite3
+database/database.sqlite
+
+# Логи
+loggs/
+logs/
+*.log
+
+# Сессии
+*.session
+*.session-journal
+
+# Экспорты
+exports/
+*.csv
+
+# Временные файлы
+*.tmp
+*.temp
+*.bak
+*.backup
+*.tar.gz
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
