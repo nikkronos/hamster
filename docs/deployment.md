@@ -24,7 +24,7 @@
 
 ```powershell
 # В PowerShell на вашем компьютере
-cd "C:\Users\krono\OneDrive\Рабочий стол\Cursor_Projects\Projects\Non actual\PastuhiBot"
+cd "C:\Users\krono\OneDrive\Рабочий стол\AI_Projects\Projects\Non actual\PastuhiBot"
 
 # Создать архив (исключая ненужные файлы)
 tar -czf update_backup.tar.gz --exclude='venv' --exclude='__pycache__' --exclude='loggs' --exclude='*.pyc' --exclude='*.session*' --exclude='database.sqlite' .
@@ -67,7 +67,7 @@ systemctl status hamster93_bot.service
 
 ```powershell
 # Скачать архив на сервер
-scp "C:\Users\krono\OneDrive\Рабочий стол\Cursor_Projects\Projects\Non actual\PastuhiBot\update_backup.tar.gz" fornex:/tmp/
+scp "C:\Users\krono\OneDrive\Рабочий стол\AI_Projects\Projects\Non actual\PastuhiBot\update_backup.tar.gz" fornex:/tmp/
 ```
 
 **Вариант B: Через WinSCP (графический интерфейс)**

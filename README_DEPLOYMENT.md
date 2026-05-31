@@ -6,7 +6,7 @@
 
 ```powershell
 # Перейти в папку проекта
-cd "C:\Users\krono\OneDrive\Рабочий стол\Cursor_Projects\Projects\Non actual\PastuhiBot"
+cd "C:\Users\krono\OneDrive\Рабочий стол\AI_Projects\Projects\Non actual\PastuhiBot"
 
 # Создать архив с обновлениями
 tar -czf update_backup.tar.gz --exclude='venv' --exclude='__pycache__' --exclude='loggs' --exclude='*.pyc' --exclude='*.session*' --exclude='database.sqlite' .
@@ -61,7 +61,7 @@ systemctl start hamster93_bot.service
 
 ```powershell
 # На вашем компьютере - скопировать скрипт на сервер
-scp "C:\Users\krono\OneDrive\Рабочий стол\Cursor_Projects\Projects\Non actual\PastuhiBot\export_users_simple.py" fornex:/home/hamster93_bot/
+scp "C:\Users\krono\OneDrive\Рабочий стол\AI_Projects\Projects\Non actual\PastuhiBot\export_users_simple.py" fornex:/home/hamster93_bot/
 ```
 
 ```bash

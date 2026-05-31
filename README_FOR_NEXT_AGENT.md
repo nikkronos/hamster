@@ -23,7 +23,7 @@
 
 ### ⚠️ КРИТИЧЕСКИ ВАЖНО:
 
-1. **Репозиторий:** проект живёт в отдельном репо **`nikkronos/hamster`** (PUBLIC), вынесен из монорепо `Cursor_Projects`.
+1. **Репозиторий:** проект живёт в отдельном репо **`nikkronos/hamster`** (PUBLIC), вынесен из монорепо `AI_Projects`.
 2. **НИКОГДА не коммить секреты.** `.env`, `*.sqlite`, `*.session`, `exports/`, `*.csv` — в `.gitignore`. Репо публичный: токены/PII/сессии юзербота туда попасть не должны. `data/config.py` безопасен — читает всё из env.
 3. **Перед изменением функции проверяй все связанные обработчики.**
 4. **Все кнопки в меню должны иметь обработчики**, проверяй навигацию между меню.
@@ -56,7 +56,7 @@
 **Обновление на сервере (SCP напрямую, не git pull):**
 ```powershell
 # пример: один файл бота hamster93
-scp "C:\Users\krono\OneDrive\Рабочий стол\Cursor_Projects\Projects\Non actual\PastuhiBot\handlers\admins\broadcast.py" fornex:/home/hamster93_bot/handlers/admins/
+scp "C:\Users\krono\OneDrive\Рабочий стол\AI_Projects\Projects\Non actual\PastuhiBot\handlers\admins\broadcast.py" fornex:/home/hamster93_bot/handlers/admins/
 ```
 ```bash
 # на сервере
