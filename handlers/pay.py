@@ -62,7 +62,7 @@ async def send_screenshot_admin(message: types.Message):
             amount,
             promocode,
             0,
-            datetime.datetime.now().strftime("%d.%m.%Y %H:%M:%S"),
+            datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         ),
     )
 
