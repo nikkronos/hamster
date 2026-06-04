@@ -230,14 +230,16 @@ async def broadcast_select_audience(call: types.CallbackQuery):
 
     buttons = [
         [("📭 Без кнопки", "bpromo_none")],
+        [("🔗 С кнопкой без скидки", "bpromo_link")],
         [("🎁 С кнопкой скидки", "bpromo_select")],
         [("Отмена", "broadcast_cancel")],
     ]
     await call.message.answer(
-        "Прикрепить под рассылкой кнопку-промокод?\n\n"
+        "Прикрепить под рассылкой кнопку?\n\n"
         "• <b>Без кнопки</b> — обычная рассылка\n"
-        "• <b>С кнопкой скидки</b> — добавит inline-кнопку, "
-        "клик откроет hamster26 и применит выбранный промокод",
+        "• <b>С кнопкой без скидки</b> — добавит inline-кнопку, "
+        "клик откроет hamster26 (обычный /start). Кликается → пишется в статистику.\n"
+        "• <b>С кнопкой скидки</b> — то же + применит выбранный промокод",
         reply_markup=await get_keyboard(buttons),
         parse_mode="HTML",
     )
@@ -248,7 +250,17 @@ async def broadcast_no_promo(call: types.CallbackQuery):
     await call.answer()
     if call.from_user.id not in config.ADMINS:
         return
-    await su.save_data_state(call.from_user.id, broadcast_promo=None)
+    await su.save_data_state(call.from_user.id, broadcast_promo=None, broadcast_with_button=False)
+    await _ask_message_type(call.message)
+
+
+@dp.callback_query_handler(Text("bpromo_link"), state="*")
+async def broadcast_link_only(call: types.CallbackQuery):
+    """Кнопка без промокода: клик трекается, hamster26 покажет обычный /start."""
+    await call.answer()
+    if call.from_user.id not in config.ADMINS:
+        return
+    await su.save_data_state(call.from_user.id, broadcast_promo=None, broadcast_with_button=True)
     await _ask_message_type(call.message)
 
 
@@ -294,7 +306,7 @@ async def broadcast_promo_chosen(call: types.CallbackQuery):
         await call.message.answer("⚠️ Промокод не найден.")
         return
 
-    await su.save_data_state(call.from_user.id, broadcast_promo=promo_code)
+    await su.save_data_state(call.from_user.id, broadcast_promo=promo_code, broadcast_with_button=True)
     await call.message.answer(
         f"✅ Выбран промокод: <b>{promo_code}</b>",
         parse_mode="HTML",
@@ -479,8 +491,9 @@ async def _show_confirmation(message: types.Message, has_photo: bool):
 # Отправка
 # ============================================================================
 
-async def _send_one(user_id, text, photo, broadcast_id, with_promo_button):
-    reply_markup = make_promo_button_markup(broadcast_id) if with_promo_button else None
+async def _send_one(user_id, text, photo, broadcast_id, button_label=None):
+    """button_label=None — без кнопки; иначе inline-кнопка с этим текстом и deep-link."""
+    reply_markup = make_promo_button_markup(broadcast_id, label=button_label) if button_label else None
     try:
         if photo:
             await dp.bot.send_photo(
@@ -523,13 +536,18 @@ async def _do_test_send(call: types.CallbackQuery, recipient_uid: int):
     text = await su.get_data_from_state(admin_id, "broadcast_text")
     photo = await su.get_data_from_state(admin_id, "broadcast_photo")
     promo = await su.get_data_from_state(admin_id, "broadcast_promo")
+    with_button = await su.get_data_from_state(admin_id, "broadcast_with_button")
     bid = await su.get_data_from_state(admin_id, "broadcast_id")
 
     if not text or not bid:
         await call.message.answer("⚠️ Данные не найдены. Начни заново через /admin.")
         return
 
-    status = await _send_one(recipient_uid, text, photo, bid, with_promo_button=bool(promo))
+    button_label = None
+    if with_button:
+        button_label = "🎁 Получить скидку" if promo else "👉 Перейти в Пастухи 2.0"
+
+    status = await _send_one(recipient_uid, text, photo, bid, button_label=button_label)
 
     after_buttons = [
         [("🧪 Тест себе", "bsend_test_self")],
@@ -581,6 +599,7 @@ async def broadcast_send_all(call: types.CallbackQuery):
     text = await su.get_data_from_state(admin_id, "broadcast_text")
     photo = await su.get_data_from_state(admin_id, "broadcast_photo")
     promo = await su.get_data_from_state(admin_id, "broadcast_promo")
+    with_button = await su.get_data_from_state(admin_id, "broadcast_with_button")
     bid = await su.get_data_from_state(admin_id, "broadcast_id")
     await su.reset_state_user(admin_id, clear_data=True)
 
@@ -598,14 +617,16 @@ async def broadcast_send_all(call: types.CallbackQuery):
         return
 
     total = len(recipients)
-    with_promo = bool(promo)
+    button_label = None
+    if with_button:
+        button_label = "🎁 Получить скидку" if promo else "👉 Перейти в Пастухи 2.0"
     progress_msg = await call.message.answer(
         f"🚀 Запускаю рассылку #{bid} для {total} пользователей…"
     )
 
     sent = blocked = failed = 0
     for i, uid in enumerate(recipients, 1):
-        status = await _send_one(uid, text, photo, bid, with_promo_button=with_promo)
+        status = await _send_one(uid, text, photo, bid, button_label=button_label)
         if status == "sent":
             sent += 1
         elif status == "blocked":
