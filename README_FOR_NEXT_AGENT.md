@@ -56,7 +56,7 @@
 **Обновление на сервере (SCP напрямую, не git pull):**
 ```powershell
 # пример: один файл бота hamster93
-scp "C:\Users\krono\OneDrive\Рабочий стол\AI_Projects\Projects\Non actual\PastuhiBot\handlers\admins\broadcast.py" fornex:/home/hamster93_bot/handlers/admins/
+scp "C:\Users\krono\OneDrive\Рабочий стол\AI_Projects\Projects\In progress\PastuhiBot\handlers\admins\broadcast.py" fornex:/home/hamster93_bot/handlers/admins/
 ```
 ```bash
 # на сервере
