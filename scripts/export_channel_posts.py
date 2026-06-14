@@ -50,6 +50,22 @@ def is_chat_channel(chat_type, *titles):
     return chat_type in CHAT_TYPES
 
 
+def has_author_prefix(text):
+    """Первая строка вида «Имя:» (реплика участника). Признак чат-ленты."""
+    if not text:
+        return False
+    first = text.split("\n", 1)[0].strip()
+    return 1 <= len(first) <= 35 and first.endswith(":")
+
+
+def feed_density(posts):
+    """Доля постов с префиксом-автором, %. 100% ≈ чат-лента, не сигнальный канал."""
+    if not posts:
+        return 0
+    n = sum(1 for p in posts if has_author_prefix(p["text"]))
+    return round(100 * n / len(posts))
+
+
 def parse_args():
     p = argparse.ArgumentParser(description="Выгрузка постов каналов за период в .md")
     p.add_argument("--days", type=int, default=7, help="за сколько последних суток (UTC), по умолчанию 7")
@@ -59,6 +75,10 @@ def parse_args():
     p.add_argument("--include-chats", action="store_true", help="включить каналы-чаты (по названию чат/адм)")
     p.add_argument("--max-msgs", type=int, default=600, help="лимит постов на канал (предохранитель)")
     p.add_argument("--limit-channels", type=int, default=0, help="обработать только первые N каналов (для smoke-теста)")
+    p.add_argument("--feed-threshold", type=int, default=60,
+                   help="порог плотности реплик (%%), выше — канал считается чат-лентой и исключается")
+    p.add_argument("--keep-feeds", action="store_true", help="не исключать чат-ленты по плотности реплик")
+    p.add_argument("--exclude-ids", default="", help="channel_id через запятую — исключить вручную")
     return p.parse_args()
 
 
@@ -168,19 +188,19 @@ async def fetch_history(app, channel_id, since, until, max_msgs):
 
 
 def render_markdown(meta, channels):
-    """channels: list of dicts с ключами title, channel_id, type, posts, error, skipped."""
+    """channels: list of dicts с ключами title, channel_id, type, posts, error, skip_reason, density."""
     lines = []
     lines.append(f"# Дайджест постов каналов")
     lines.append("")
     lines.append(f"- Период (UTC): **{meta['since']:%Y-%m-%d %H:%M}** — **{meta['until']:%Y-%m-%d %H:%M}** (последние {meta['days']} сут.)")
     lines.append(f"- Сформировано: {meta['generated']:%Y-%m-%d %H:%M} UTC")
-    included = [c for c in channels if not c["skipped"]]  # сигнальные каналы (рендерим всегда)
-    excluded = [c for c in channels if c["skipped"]]
+    included = [c for c in channels if not c["skip_reason"]]  # сигнальные каналы (рендерим всегда)
+    excluded = [c for c in channels if c["skip_reason"]]
     errored = [c for c in included if c["error"]]
     total_posts = sum(len(c["posts"]) for c in included)
     lines.append(f"- Каналов в дайджесте: **{len(included)}**, постов всего: **{total_posts}**")
     if excluded:
-        lines.append(f"- Исключены чаты ({len(excluded)}): " + ", ".join(c["title"] for c in excluded))
+        lines.append(f"- Исключено ({len(excluded)}): " + ", ".join(f"{c['title']} [{c['skip_reason']}]" for c in excluded))
     if errored:
         lines.append(f"- С ошибкой доступа ({len(errored)}): " + ", ".join(f"{c['title']} [{c['error']}]" for c in errored))
     lines.append("")
@@ -218,6 +238,8 @@ async def run():
     until = datetime.now(timezone.utc).replace(tzinfo=None)  # naive UTC — как msg.date в Pyrogram 2.0.x
     since = until - timedelta(days=args.days)
 
+    exclude_ids = {int(x) for x in args.exclude_ids.split(",") if x.strip()}
+
     tracked = load_tracked_channels(args.db)
     if args.limit_channels:
         tracked = tracked[: args.limit_channels]
@@ -233,14 +255,18 @@ async def run():
     async with Client(name, workdir=workdir) as app:
         for channel_id, title, _forward in tracked:
             entry = {"title": title, "channel_id": channel_id, "type": None,
-                     "posts": [], "error": None, "skipped": False}
+                     "posts": [], "error": None, "skip_reason": None, "density": None}
             try:
                 chat_type, live_title, error = await resolve_chat(app, channel_id)
                 entry["type"] = chat_type
                 entry["title"] = live_title or title
+                if channel_id in exclude_ids:
+                    entry["skip_reason"] = "вручную"
+                    entry["error"] = error
+                    print(f"  skip (вручную): {entry['title']}")
                 # классификация чат/сигнал по названию (stored + live), решаем ДО выкачки
-                if is_chat_channel(chat_type, title, live_title) and not args.include_chats:
-                    entry["skipped"] = True
+                elif is_chat_channel(chat_type, title, live_title) and not args.include_chats:
+                    entry["skip_reason"] = "чат (название)"
                     entry["error"] = error  # сохраним причину, если канал был недоступен
                     print(f"  skip (чат): {entry['title']}")
                 elif error:
@@ -250,7 +276,15 @@ async def run():
                     posts, herr = await fetch_history(app, channel_id, since, until, args.max_msgs)
                     entry["posts"] = posts
                     entry["error"] = herr
-                    print(f"  ok: {entry['title']} — {len(posts)} постов" + (f" [{herr}]" if herr else ""))
+                    dens = feed_density(posts)
+                    entry["density"] = dens
+                    # авто-исключение чат-лент по плотности реплик (после выкачки)
+                    if dens >= args.feed_threshold and not args.keep_feeds:
+                        entry["skip_reason"] = f"чат-лента {dens}%"
+                        print(f"  skip (чат-лента {dens}%): {entry['title']} — {len(posts)} реплик отброшено")
+                    else:
+                        print(f"  ok: {entry['title']} — {len(posts)} постов (реплик {dens}%)"
+                              + (f" [{herr}]" if herr else ""))
             except Exception as e:
                 entry["error"] = str(e)
                 print(f"  ERROR: {title} ({channel_id}): {e}")
@@ -264,7 +298,7 @@ async def run():
     fname = f"digest_{since:%Y-%m-%d}_to_{until:%Y-%m-%d}.md"
     out_path = Path(args.out_dir) / fname
     out_path.write_text(md, encoding="utf-8")
-    total = sum(len(c["posts"]) for c in channels if not c["skipped"] and not c["error"])
+    total = sum(len(c["posts"]) for c in channels if not c["skip_reason"])
     print(f"\nГотово: {out_path}")
     print(f"Постов в дайджесте: {total}; размер файла: {out_path.stat().st_size} байт")
     return 0
