@@ -4,6 +4,13 @@
 
 **Подробности выполненных задач см. в:** `DONE_LIST_PASTUHIBOT.md`
 
+- [x] **Выгрузка постов каналов в .md для дайджеста** - 14.06.2026
+  - `scripts/export_channel_posts.py` — standalone Pyrogram-скрипт, читает `tracked_channels`,
+    выгружает посты за период (по умолчанию 7 сут.) в один `.md` для LLM-саммари (Grok).
+  - Read-only, работает с КОПИЕЙ session юзербота (не трогает живой `hamster26_userbot`).
+  - Чаты (`чат/адм/admin/chat` в названии) исключаются; флаг `--include-chats` их возвращает.
+  - Запуск: `cd /home/hamster26/userbot && venv/bin/python export_channel_posts.py --days 7`.
+  - Замечание: часть «каналов» — дискуссионные ленты, реальные сигналы автора помечены `#Admin:`.
 - [x] **Фикс формата `payments.date` + миграция БД** - 31.05.2026
   - `payments.date` писался как `DD.MM.YYYY HH:MM:SS` → строковое сравнение в SQLite ломало ad-hoc отчёты по конверсии (`"29.12.2025" > "27.05.2026"` лексикографически).
   - Стало: ISO `%Y-%m-%d %H:%M:%S` (`handlers/pay.py:65`).
